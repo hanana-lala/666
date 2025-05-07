@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>你喜欢喵吗</title>
+  <style>
+    body {
+      background-color: black;
+      color: #33ff33;
+      font-family: monospace;
+      margin: 0;
+      padding: 1em;
+      box-sizing: border-box;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #terminal {
+      width: 90vw;
+      max-width: 480px;
+      height: 80vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #33ff33;
+      padding: 0.5em;
+      box-sizing: border-box;
+    }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-bottom: 0.5em;
+    }
+    #input-line {
+      display: flex;
+    }
+    #prompt {
+      margin-right: 0.5em;
+    }
+    #input {
+      background: black;
+      border: none;
+      color: #33ff33;
+      font-family: monospace;
+      font-size: 1em;
+      flex: 1;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal">
+    <div id="log">人生真是喵喵又咪咪..</div>
+    <div id="input-line">
+      <span id="prompt">➜</span>
+      <input id="input" type="text" autofocus autocomplete="off" />
+    </div>
+  </div>
+
+  <script>
+    const MAGIC = "\u200b\u200c\u200d\ufeff";
+    const ZERO_WIDTH = ["\u200b", "\u200c", "\u200d", "\ufeff"];
+    const VISIBLE = "喵";
+    let keyAccepted = false;
+    let key = "";
+
+    const logBox = document.getElementById("log");
+    const inputBox = document.getElementById("input");
+
+    function intToZW(n, length = 10) {
+      let result = "";
+      for (let i = 0; i < length; i++) {
+        result = ZERO_WIDTH[n % 4] + result;
+        n = Math.floor(n / 4);
+      }
+      return result;
+    }
+
+    function zwToInt(zwStr) {
+      let n = 0;
+      for (const ch of zwStr) {
+        n = n * 4 + ZERO_WIDTH.indexOf(ch);
+      }
+      return n;
+    }
+
+    function generateKeyShifts(key, length) {
+      const codes = Array.from(key).map(c => c.charCodeAt(0));
+      return Array.from({ length }, (_, i) => codes[i % codes.length]);
+    }
+
+    function appendLog(text) {
+      logBox.innerText += "\n" + text;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function handleInput(cmd) {
+      appendLog("➜ " + cmd);
+      if (!keyAccepted) {
+        if (cmd.trim() === "meow") {
+          key = "meow";
+          keyAccepted = true;
+          appendLog("✅ meow正确~~，开始喵喵喵喵！");
+        } else {
+          appendLog("❌ meow错误（请输入你的喵）");
+        }
+        return;
+      }
+
+      if (cmd.startsWith(MAGIC)) {
+        const input = cmd.slice(MAGIC.length);
+        const parts = input.split(VISIBLE).slice(1);
+        const shifts = generateKeyShifts(key, parts.length);
+        let result = "";
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i].length < 10) continue;
+          const zw = parts[i].slice(0, 10);
+          const code = zwToInt(zw);
+          result += String.fromCharCode(code - shifts[i]);
+        }
+        appendLog("🔓 解喵结果：\n" + result);
+      } else {
+        const shifts = generateKeyShifts(key, cmd.length);
+        let result = MAGIC;
+        for (let i = 0; i < cmd.length; i++) {
+          const shifted = cmd.charCodeAt(i) + shifts[i];
+          const zw = intToZW(shifted);
+          result += VISIBLE + zw;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(result).then(() => {
+            appendLog("🔐 加meow成功，结果已复制！");
+          }).catch(err => {
+            appendLog("⚠️ 加meow成功但复制失败：" + err.message);
+          });
+        } else {
+          appendLog("🔐 加meow成手动复制：\n" + result);
+        }
+      }
+    }
+
+    inputBox.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        const cmd = this.value.trim();
+        if (cmd === "") return;
+        this.value = "";
+        try {
+          handleInput(cmd);
+        } catch (err) {
+          appendLog("❗ 出错了：" + err.message);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+
